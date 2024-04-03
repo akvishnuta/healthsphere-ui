@@ -11,14 +11,20 @@ import {
   CFormSelect,
   CButton,
   CAlert,
+  CModal,
+  CModalHeader,
+  CModalTitle,
+  CModalBody,
+  CModalFooter,
 } from '@coreui/react'
 import DataTable from 'react-data-table-component'
 import { HealthSphere } from 'src/components'
 
-const AddDoctor = () => {
+const PatientRegistration = () => {
   const BASE_URL = 'http://localhost:8443'
 
   const [data, setData] = useState(null)
+  const [confirmModalData, setConfirmModalData] = useState({ visible: false })
   const [body, setBody] = useState({ department: 'EMERGENCY' })
   const [saveResponse, setSaveResponse] = useState(null)
   const [status, setStatus] = useState({})
@@ -38,7 +44,7 @@ const AddDoctor = () => {
       .catch((error) => console.error(error))
 
     const queryStr = objToQueryString(searchQuery)
-    fetch(BASE_URL + '/v1/doctor/search?' + queryStr)
+    fetch(BASE_URL + '/v1/patient/search?' + queryStr)
       .then((response) => response.json())
       .then((json) => {
         setData([...json.data.list])
@@ -74,7 +80,7 @@ const AddDoctor = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    await fetch(BASE_URL + '/v1/doctor', {
+    await fetch(BASE_URL + '/v1/patient', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -88,12 +94,40 @@ const AddDoctor = () => {
           ...searchQuery,
           department: body.department,
         })
+        clearAll()
       })
       .catch((error) => {
         setStatus({ type: 'error', error })
         console.error(error)
       })
       .finally(() => setLoading(false))
+    closeModal()
+    setLoading(false)
+  }
+
+  const handleDelete = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    await fetch(BASE_URL + '/v1/patient/' + body.id, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    })
+      .then((response) => {
+        response.status === 200
+          ? setStatus({ type: 'success' })
+          : setStatus({ type: 'error', error: statusText })
+        setSearchQuery({
+          ...searchQuery,
+          department: body.department,
+        })
+        clearAll()
+      })
+      .catch((error) => {
+        setStatus({ type: 'error', error })
+        console.error(error)
+      })
+      .finally(() => setLoading(false))
+    closeModal()
     setLoading(false)
   }
 
@@ -118,6 +152,24 @@ const AddDoctor = () => {
       department: '',
       email: '',
       mobileNo: '',
+    })
+  }
+
+  const showModal = (yesCallback, cancelCallBack, modalTitle, modalBody) => {
+    setConfirmModalData({
+      ...confirmModalData,
+      yesCallback,
+      cancelCallBack,
+      modalTitle,
+      modalBody,
+      visible: true,
+    })
+  }
+
+  const closeModal = () => {
+    setConfirmModalData({
+      ...confirmModalData,
+      visible: false,
     })
   }
 
@@ -160,7 +212,7 @@ const AddDoctor = () => {
       <CCol xs={12}>
         <CCard className="mb-4">
           <CCardHeader>
-            <strong>Add New Doctor</strong>
+            <strong>Patient Registration</strong>
           </CCardHeader>
           <CCardBody>
             <p className="text-body-secondary small">Add Details.</p>
@@ -172,6 +224,26 @@ const AddDoctor = () => {
             )}
             <HealthSphere href="forms/form-control">
               <CForm>
+                {body.id && (
+                  <div className="row">
+                    <div className="mb-3 col-lg-3">
+                      <CFormLabel htmlFor="id">Update for Doctor Id</CFormLabel>
+                      <CFormInput
+                        onChange={(e) => {
+                          return setBody({
+                            ...body,
+                            lastName: e.target.value,
+                          })
+                        }}
+                        type="text"
+                        value={body.id}
+                        id="id"
+                        placeholder="Id"
+                        disabled
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="row">
                   <div className="mb-3 col-lg-6">
                     <CFormLabel htmlFor="firstName">First Name</CFormLabel>
@@ -257,16 +329,41 @@ const AddDoctor = () => {
                 <div className="row">
                   <div className="mb-3 col-lg-6"></div>
                   <div className="col-lg-3">
+                    {body.id && (
+                      <CButton color="info" onClick={clearAll}>
+                        Add New
+                      </CButton>
+                    )}
                     <CButton
-                      onClick={handleSubmit}
+                      onClick={
+                        body.id
+                          ? () =>
+                              showModal(
+                                handleSubmit,
+                                undefined,
+                                'Save changes',
+                                'Are you sure you want to save the changes?',
+                              )
+                          : handleSubmit
+                      }
                       color={body.id ? 'warning' : 'success'}
                       key="save-btn"
                     >
                       {body.id ? 'Update' : 'Save'}
                     </CButton>
                     {body.id && (
-                      <CButton color="info" onClick={clearAll}>
-                        Add New
+                      <CButton
+                        color="danger"
+                        onClick={() =>
+                          showModal(
+                            handleDelete,
+                            undefined,
+                            'Confirm Delete',
+                            'Are you sure you want to delete this item?',
+                          )
+                        }
+                      >
+                        Delete
                       </CButton>
                     )}
                   </div>
@@ -293,7 +390,6 @@ const AddDoctor = () => {
                       <DataTable
                         columns={columns}
                         data={data}
-                        selectableRows
                         highlightOnHover
                         pointerOnHover
                         fixedHeader
@@ -315,8 +411,28 @@ const AddDoctor = () => {
           </CCardBody>
         </CCard>
       </CCol>
+      <CModal
+        visible={confirmModalData.visible}
+        onClose={() => closeModal()}
+        aria-labelledby="LiveDemoExampleLabel"
+      >
+        <CModalHeader onClose={() => closeModal()}>
+          <CModalTitle id="LiveDemoExampleLabel">{confirmModalData.modalTitle}</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <p>{confirmModalData.modalBody}</p>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => closeModal()}>
+            Cancel
+          </CButton>
+          <CButton onClick={confirmModalData.yesCallback} color="primary">
+            Yes
+          </CButton>
+        </CModalFooter>
+      </CModal>
     </CRow>
   )
 }
 
-export default AddDoctor
+export default PatientRegistration

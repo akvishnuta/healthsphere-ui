@@ -4,8 +4,11 @@ const Dashboard = React.lazy(() => import('./views/dashboard/Dashboard'))
 const Colors = React.lazy(() => import('./views/theme/colors/Colors'))
 const Typography = React.lazy(() => import('./views/theme/typography/Typography'))
 
-// People
-const AddDoctor = React.lazy(() => import('./views/doctor/AddDoctor'))
+// Doctor
+const ManageDoctor = React.lazy(() => import('./views/doctor/ManageDoctor'))
+
+// Patient
+const PatientRegistration = React.lazy(() => import('./views/patient/PatientRegistration'))
 
 // Base
 const Accordion = React.lazy(() => import('./views/base/accordion/Accordion'))
@@ -98,7 +101,8 @@ const routes = [
   { path: '/notifications/modals', name: 'Modals', element: Modals },
   { path: '/notifications/toasts', name: 'Toasts', element: Toasts },
   { path: '/widgets', name: 'Widgets', element: Widgets },
-  { path: '/doctor/add', name: 'Add Doctor', element: AddDoctor },
+  { path: '/doctor/manage', name: 'Manage', element: ManageDoctor },
+  { path: '/patient/registration', name: 'Patient Registration', element: PatientRegistration },
 ]
 
 export default routes

@@ -54,8 +54,21 @@ const _nav = [
     items: [
       {
         component: CNavItem,
-        name: 'Add Doctor',
-        to: '/doctor/add',
+        name: 'Manage',
+        to: '/doctor/manage',
+      },
+    ],
+  },
+  {
+    component: CNavGroup,
+    name: 'Patient',
+    to: '/patient',
+    icon: <CIcon icon={cilPuzzle} customClassName="nav-icon" />,
+    items: [
+      {
+        component: CNavItem,
+        name: 'Registration',
+        to: '/patient/registration',
       },
     ],
   },
