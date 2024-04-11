@@ -22,37 +22,99 @@ import { HealthSphere } from 'src/components'
 
 const PatientRegistration = () => {
   const BASE_URL = 'http://localhost:8443'
+  const ageList = []
+  for (let i = 0; i < 120; i++) {
+    ageList.push('' + i)
+  }
+  const getDateStr = (date) => {
+    return (
+      date.getFullYear() -
+      age +
+      '-' +
+      String(date.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      date.getDate()
+    )
+  }
+
+  const getAgeStr = () => {
+    const today = new Date()
+    return today.getFullYear() - new Date(body.dateOfBirth).getFullYear()
+  }
 
   const [data, setData] = useState(null)
+  const [age, setAge] = useState(5)
   const [confirmModalData, setConfirmModalData] = useState({ visible: false })
-  const [body, setBody] = useState({ department: 'EMERGENCY' })
+  const [body, setBody] = useState({
+    dateOfBirth: getDateStr(new Date()),
+    height: 170,
+    weight: 70,
+  })
   const [saveResponse, setSaveResponse] = useState(null)
   const [status, setStatus] = useState({})
-  const [searchQuery, setSearchQuery] = useState({ department: 'EMERGENCY' })
+  const [searchQuery, setSearchQuery] = useState({})
   const [loading, setLoading] = useState(false)
   const [totalRows, setTotalRows] = useState(0)
   const [departmentList, setDepartmentList] = useState([])
+  const [doctorList, setDoctorList] = useState([])
 
   useMemo(() => {
-    setLoading(true)
+    setBody({
+      ...body,
+      dateOfBirth: getDateStr(new Date()),
+    })
+  }, [age])
+  useMemo(() => {
+    setAge(getAgeStr())
+  }, [body.dateOfBirth])
 
-    fetch(BASE_URL + '/v1/department/list')
-      .then((response) => response.json())
-      .then((json) => {
-        setDepartmentList([...json.data])
-      })
-      .catch((error) => console.error(error))
+  fetch(BASE_URL + '/v1/department/list')
+    .then((response) => response.json())
+    .then((json) => {
+      setDepartmentList([...json.data])
+    })
+    .catch((error) => console.error(error))
 
-    const queryStr = objToQueryString(searchQuery)
-    fetch(BASE_URL + '/v1/patient/search?' + queryStr)
-      .then((response) => response.json())
-      .then((json) => {
-        setData([...json.data.list])
-        setTotalRows(json.data.totalRecords)
-      })
-      .catch((error) => console.error(error))
-    setLoading(false)
-  }, [saveResponse, searchQuery])
+  useMemo(() => {
+    if (body.department) {
+      fetch(BASE_URL + '/v1/doctor/search?count=100&department=' + body.department)
+        .then((response) => response.json())
+        .then((json) => {
+          const docList = []
+          json.data.list.forEach((doc) => {
+            docList.push({ label: doc.firstName, value: doc.id })
+          })
+          setDoctorList(docList)
+        })
+        .catch((error) => console.error(error))
+    }
+  }, [body.department])
+
+  const validateSearchQuery = () => {
+    let isValid = false
+    for (const key in searchQuery) {
+      if (searchQuery[key] && searchQuery[key] !== '') isValid = true
+    }
+    return isValid
+  }
+
+  useMemo(() => {
+    if (validateSearchQuery() && body.department && body.doctor) {
+      const query = {
+        ...searchQuery,
+        department: body.department,
+        doctor: body.doctor,
+      }
+      const queryStr = objToQueryString(query)
+      fetch(BASE_URL + '/v1/patient/search?' + queryStr)
+        .then((response) => response.json())
+        .then((json) => {
+          setData([...json.data.list])
+          setTotalRows(json.data.totalRecords)
+        })
+        .catch((error) => console.error(error))
+    }
+  }, [saveResponse, searchQuery, body.department, body.doctor])
 
   function objToQueryString(obj) {
     const keyValuePairs = []
@@ -131,7 +193,7 @@ const PatientRegistration = () => {
     setLoading(false)
   }
 
-  const handleRowClicked = (row, e) => {
+  const handleRowClicked = (row, _e) => {
     setBody({
       ...body,
       id: row.id,
@@ -187,10 +249,6 @@ const PatientRegistration = () => {
       selector: (row) => row.lastName,
     },
     {
-      name: 'Department',
-      selector: (row) => row.department,
-    },
-    {
       name: 'Mobile No.',
       selector: (row) => row.mobileNo,
     },
@@ -213,6 +271,38 @@ const PatientRegistration = () => {
         <CCard className="mb-4">
           <CCardHeader>
             <strong>Patient Registration</strong>
+            <CForm>
+              <div className="row">
+                <div className="mb-3 col-lg-6">
+                  <CFormLabel htmlFor="department">Department</CFormLabel>
+                  <CFormSelect
+                    aria-label="Default select example"
+                    options={['Select Department', ...departmentList]}
+                    onChange={(e) => {
+                      return setBody({
+                        ...body,
+                        department: e.target.value,
+                      })
+                    }}
+                    value={body.department}
+                  />
+                </div>
+                <div className="mb-3 col-lg-6">
+                  <CFormLabel htmlFor="doctor">Doctor</CFormLabel>
+                  <CFormSelect
+                    aria-label="Default select example"
+                    options={['Select Doctor', ...doctorList]}
+                    onChange={(e) => {
+                      return setBody({
+                        ...body,
+                        doctor: e.target.value,
+                      })
+                    }}
+                    value={body.doctor}
+                  />
+                </div>
+              </div>
+            </CForm>
           </CCardHeader>
           <CCardBody>
             <p className="text-body-secondary small">Add Details.</p>
@@ -245,7 +335,7 @@ const PatientRegistration = () => {
                   </div>
                 )}
                 <div className="row">
-                  <div className="mb-3 col-lg-6">
+                  <div className="mb-3 col-lg-3">
                     <CFormLabel htmlFor="firstName">First Name</CFormLabel>
                     <CFormInput
                       onChange={(e) => {
@@ -260,7 +350,7 @@ const PatientRegistration = () => {
                       placeholder="First Name"
                     />
                   </div>
-                  <div className="mb-3 col-lg-6">
+                  <div className="mb-3 col-lg-3">
                     <CFormLabel htmlFor="lastName">Last Name</CFormLabel>
                     <CFormInput
                       onChange={(e) => {
@@ -275,26 +365,85 @@ const PatientRegistration = () => {
                       placeholder="Last Name"
                     />
                   </div>
-                </div>
-                <div className="row">
-                  <div className="mb-3 col-lg-6">
-                    <CFormLabel htmlFor="department">Department</CFormLabel>
-                    <CFormSelect
-                      aria-label="Default select example"
-                      options={['Select Department', ...departmentList]}
+                  <div className="mb-3 col-lg-2">
+                    <CFormLabel htmlFor="dateOfBirth">Date of Birth</CFormLabel>
+                    <CFormInput
                       onChange={(e) => {
                         return setBody({
                           ...body,
-                          department: e.target.value,
+                          dateOfBirth: e.target.value,
                         })
                       }}
-                      value={body.department}
+                      type="date"
+                      value={body.dateOfBirth}
+                      id="dateOfBirth"
+                    />
+                  </div>
+                  <div className="mb-3 col-lg-1">
+                    <CFormLabel htmlFor="age">Age</CFormLabel>
+                    <CFormSelect
+                      onChange={(e) => {
+                        return setAge(e.target.value)
+                      }}
+                      options={ageList}
+                      value={age}
+                      id="age"
+                    />
+                  </div>
+
+                  <div className="mb-3 col-lg-1">
+                    <CFormLabel htmlFor="height">Height (cms)</CFormLabel>
+                    <CFormInput
+                      onChange={(e) => {
+                        return setBody({ ...body, height: e.target.value })
+                      }}
+                      type="number"
+                      value={body.height}
+                      id="hieght"
+                    />
+                  </div>
+
+                  <div className="mb-3 col-lg-1">
+                    <CFormLabel htmlFor="age">Weight (Kg)</CFormLabel>
+                    <CFormInput
+                      onChange={(e) => {
+                        return setBody({ ...body, weight: e.target.value })
+                      }}
+                      type="number"
+                      value={body.weight}
+                      id="weight"
+                    />
+                  </div>
+
+                  <div className="mb-3 col-lg-1">
+                    <CFormLabel htmlFor="age">Gender</CFormLabel>
+                    <CFormSelect
+                      onChange={(e) => {
+                        return setBody({ ...body, gender: e.target.value })
+                      }}
+                      options={['M', 'F']}
+                      value={body.gender}
+                      id="gender"
                     />
                   </div>
                 </div>
-
                 <div className="row">
-                  <div className="mb-3 col-lg-6">
+                  <div className="mb-3 col-lg-3">
+                    <CFormLabel htmlFor="address">Address</CFormLabel>
+                    <CFormInput
+                      onChange={(e) => {
+                        return setBody({
+                          ...body,
+                          address: e.target.value,
+                        })
+                      }}
+                      value={body.address}
+                      type="text"
+                      id="address"
+                      placeholder="Address"
+                    />
+                  </div>
+                  <div className="mb-3 col-lg-3">
                     <CFormLabel htmlFor="email">Email address</CFormLabel>
                     <CFormInput
                       onChange={(e) => {
@@ -309,7 +458,7 @@ const PatientRegistration = () => {
                       value={body.email}
                     />
                   </div>
-                  <div className="mb-3 col-lg-6">
+                  <div className="mb-3 col-lg-3">
                     <CFormLabel htmlFor="mobileNo">Mobile No</CFormLabel>
                     <CFormInput
                       onChange={(e) => {
@@ -327,7 +476,7 @@ const PatientRegistration = () => {
                 </div>
 
                 <div className="row">
-                  <div className="mb-3 col-lg-6"></div>
+                  <div className="mb-3 col-lg-9"></div>
                   <div className="col-lg-3">
                     {body.id && (
                       <CButton color="info" onClick={clearAll}>
@@ -370,19 +519,62 @@ const PatientRegistration = () => {
                 </div>
                 <div className="row">
                   <hr />
-                  <div className="mb-3 col-lg-6">
-                    <CFormLabel htmlFor="departmentQuery">Department Query</CFormLabel>
-                    <CFormSelect
-                      aria-label="Default select example"
-                      options={['Select Department', ...departmentList]}
+                  <div className="mb-3 col-lg-3">
+                    <CFormLabel htmlFor="firstNameQuery">First Name</CFormLabel>
+                    <CFormInput
+                      aria-label="First name"
+                      disabled={!body.department}
                       onChange={(e) => {
                         e.preventDefault()
                         return setSearchQuery({
                           ...searchQuery,
-                          department: e.target.value,
+                          firstName: e.target.value,
                         })
                       }}
-                      value={searchQuery.department}
+                      value={searchQuery.firstName}
+                    />
+                  </div>
+                  <div className="mb-3 col-lg-3">
+                    <CFormLabel htmlFor="lastNameQuery">Last Name</CFormLabel>
+                    <CFormInput
+                      aria-label="Last Name"
+                      disabled={!body.department}
+                      onChange={(e) => {
+                        e.preventDefault()
+                        return setSearchQuery({
+                          ...searchQuery,
+                          lastName: e.target.value,
+                        })
+                      }}
+                      value={searchQuery.lastName}
+                    />
+                  </div>
+                  <div className="mb-3 col-lg-3">
+                    <CFormLabel htmlFor="mobileNo">Mobile No</CFormLabel>
+                    <CFormInput
+                      aria-label="mobileNo"
+                      disabled={!body.department}
+                      onChange={(e) => {
+                        e.preventDefault()
+                        return setSearchQuery({
+                          ...searchQuery,
+                          mobileNo: e.target.value,
+                        })
+                      }}
+                      value={searchQuery.mobileNo}
+                    />
+                  </div>
+                  <div className="mb-3 col-lg-2">
+                    <CFormLabel htmlFor="dateQuery">Reg/Renew Date</CFormLabel>
+                    <CFormInput
+                      onChange={(e) => {
+                        return setSearchQuery({
+                          ...searchQuery,
+                          regDate: e.target.value,
+                        })
+                      }}
+                      type="date"
+                      value={getDateStr(new Date())}
                     />
                   </div>
                   <div className="col-lg-12">
@@ -393,7 +585,7 @@ const PatientRegistration = () => {
                         highlightOnHover
                         pointerOnHover
                         fixedHeader
-                        title="Doctors"
+                        title="Patients"
                         pagination
                         paginationServer
                         onChangeRowsPerPage={handlePerRowsChange}
@@ -402,7 +594,7 @@ const PatientRegistration = () => {
                         onRowClicked={handleRowClicked}
                       />
                     ) : (
-                      'Loading...'
+                      'Start a query'
                     )}
                   </div>
                 </div>
